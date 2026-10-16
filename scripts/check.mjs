@@ -30,6 +30,9 @@ for(const r of evidence){assert(r.statusLabel&&r.takeaway);for(const id of r.sou
 assert.equal(catalog.courses.length,7);
 const chapters=catalog.courses.flatMap(c=>c.chapters);
 assert.equal(chapters.length,21);
+assert(chapters.every(ch=>ch.studyGuide&&ch.contentStatus==='expanded-lesson'));
+assert.equal(chapters.flatMap(ch=>ch.lesson.questions).length,63);
+assert.equal(new Set(chapters.flatMap(ch=>ch.lesson.questions.map(q=>q.id))).size,63);
 for(const chapter of chapters){
   assert(chapter.englishTitle&&chapter.claims.length);
   for(const id of chapter.sourceIds)assert(ids.has(id));
@@ -43,7 +46,7 @@ for(const chapter of chapters){
     for(const id of m.sourceIds)assert(ids.has(id));
   }
 }
-for(const file of ['apps/web/index.html','apps/web/style.css','apps/web/app.mjs','apps/web/exam-ui.mjs']){
+for(const file of ['apps/web/index.html','apps/web/style.css','apps/web/app.mjs','apps/web/exam-ui.mjs','apps/web/lesson-ui.mjs']){
   const text=await readFile(new URL('../'+file,import.meta.url),'utf8');assert(!text.includes('\ufffd'));assert(text.length>0);
 }
-console.log('검증 완료: 7개 강의, 21개 챕터, 출처 연결, 자체 작성 문제와 10점 루브릭.');
+console.log('검증 완료: 7개 강의, 21개 확장 학습안, 서술형 연습 63문제, 시험 21문제, 출처 연결과 10점 루브릭.');
