@@ -153,7 +153,7 @@ export async function createApp({stateDir=path.join(ROOT,'.runtime'),adapter=cre
         throw new HttpError(404,'경로를 찾을 수 없습니다.');
       }
       if(req.method!=='GET')throw new HttpError(405,'허용되지 않은 요청');
-      const files={'/':'index.html','/app.mjs':'app.mjs','/exam-ui.mjs':'exam-ui.mjs','/style.css':'style.css'};
+      const files={'/':'index.html','/app.mjs':'app.mjs','/exam-ui.mjs':'exam-ui.mjs','/lesson-ui.mjs':'lesson-ui.mjs','/style.css':'style.css'};
       const file=files[route];if(!file)throw new HttpError(404,'페이지를 찾을 수 없습니다.');
       const data=await readFile(path.join(webRoot,file));
       res.writeHead(200,{'Content-Type':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});res.end(data);

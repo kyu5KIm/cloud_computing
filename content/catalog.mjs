@@ -1,3 +1,4 @@
+import {attachExpandedLessons,lessonVersion} from './expanded-lessons.mjs';
 import {reviewedMaterials, supplementalNotes, materialVersion} from './verified-materials.mjs';
 import {attachStudyEvidence,runCheckedAt,runRevision} from './study-evidence.mjs';
 const checkedAt = '2026-10-12';
@@ -146,5 +147,6 @@ for(const note of supplementalNotes){
 attachStudyEvidence(courses,sources);
 chapter.lesson.exerciseNotes.notice='문제 요구·선택지뿐 아니라 답안 제출 후 정답 피드백까지 확인했습니다. 상세 진행 기록을 아래에서 볼 수 있습니다.';
 chapter.lesson.exerciseNotes.sourceIds.push('DC-run-C01-1-ex2');
-export const catalog = {version:materialVersion+'-run-'+runRevision,checkedAt:runCheckedAt,courses,sources};
+attachExpandedLessons(courses,sources);
+export const catalog = {version:lessonVersion+'-'+materialVersion+'-run-'+runRevision,checkedAt:runCheckedAt,courses,sources};
 export const findChapter = id => courses.flatMap(c=>c.chapters).find(c=>c.id===id);
