@@ -6,6 +6,8 @@ import {randomBytes,timingSafeEqual} from 'node:crypto';
 import {catalog,findChapter} from '../../content/catalog.mjs';
 import {createAdapter,checkLogin} from '../../packages/codex-adapter/adapter.mjs';
 import {examQuestions} from '../../content/exams.mjs';
+import {createStudyChatAdapter,findChatExecutable} from '../../packages/codex-adapter/study-chat.mjs';
+import {createChatService} from '../../packages/codex-adapter/chat-service.mjs';
 import {createExamGrader} from '../../packages/codex-adapter/exam-grader.mjs';
 import {createExamService} from '../../packages/exams/service.mjs';
 
@@ -61,9 +63,10 @@ async function findExecutable(){
   try{for(const version of (await readdir(appBin)).sort().reverse()){const candidate=path.join(appBin,version,'codex.exe');try{await stat(candidate);return candidate;}catch{}}}catch{}
   return null;
 }
-export async function createApp({stateDir=path.join(ROOT,'.runtime'),adapter=createAdapter(),examGrader=createExamGrader(),executable=null}={}){
+export async function createApp({stateDir=path.join(ROOT,'.runtime'),adapter=createAdapter(),examGrader=createExamGrader(),executable=null,chatAdapter=createStudyChatAdapter()}={}){
   await mkdir(stateDir,{recursive:true});
   const exams=await createExamService(stateDir,examGrader);
+  const studyChat=createChatService(catalog,chatAdapter);
   const statePath=path.join(stateDir,'state.json');
   let state=emptyState(),storageWarning=null;
   try{state=validateState(JSON.parse(await readFile(statePath,'utf8')));}catch(e){if(e.code!=='ENOENT')storageWarning='저장 자료를 읽지 못했습니다. 원본은 보존했습니다. 복구 전 새 저장을 중단합니다.';}
@@ -94,6 +97,13 @@ export async function createApp({stateDir=path.join(ROOT,'.runtime'),adapter=cre
         if(req.method!=='GET'){
           if(req.headers.origin!==origin||!equal(req.headers['x-csrf-token'],csrf))throw new HttpError(403,'요청 검증 실패');
           if(!(req.headers['content-type']??'').startsWith('application/json'))throw new HttpError(415,'JSON 요청만 허용');
+        }
+        if(req.method==='GET'&&route==='/api/chat/status')return send(res,200,studyChat.status());
+        if(req.method==='POST'&&route==='/api/chat/jobs')return send(res,202,await studyChat.submit(await body(req)));
+        const chatMatch=route.match(/^\/api\/chat\/jobs\/([a-f0-9]{24})(\/cancel)?$/);
+        if(chatMatch){
+          if(req.method==='GET'&&!chatMatch[2])return send(res,200,studyChat.get(chatMatch[1]));
+          if(req.method==='POST'&&chatMatch[2])return send(res,200,studyChat.cancel(chatMatch[1]));
         }
         if(req.method==='GET'&&route==='/api/catalog')return send(res,200,catalog);
         if(req.method==='GET'&&route==='/api/state')return send(res,200,state);
@@ -153,18 +163,20 @@ export async function createApp({stateDir=path.join(ROOT,'.runtime'),adapter=cre
         throw new HttpError(404,'경로를 찾을 수 없습니다.');
       }
       if(req.method!=='GET')throw new HttpError(405,'허용되지 않은 요청');
-      const files={'/':'index.html','/app.mjs':'app.mjs','/exam-ui.mjs':'exam-ui.mjs','/lesson-ui.mjs':'lesson-ui.mjs','/style.css':'style.css'};
+      const files={'/':'index.html','/app.mjs':'app.mjs','/exam-ui.mjs':'exam-ui.mjs','/lesson-ui.mjs':'lesson-ui.mjs','/study-chat-ui.mjs':'study-chat-ui.mjs','/study-chat.css':'study-chat.css','/style.css':'style.css'};
       const file=files[route];if(!file)throw new HttpError(404,'페이지를 찾을 수 없습니다.');
       const data=await readFile(path.join(webRoot,file));
       res.writeHead(200,{'Content-Type':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});res.end(data);
     }catch(error){send(res,error.status??500,{error:error.status?error.message:'처리하지 못했습니다. 초안은 그대로 보관하세요.'});}
   });
-  return {server,close:()=>new Promise(resolve=>{for(const job of jobs.values())job.controller.abort();server.close(resolve);}),getState:()=>state};
+  return {server,close:()=>new Promise(resolve=>{studyChat.close();for(const job of jobs.values())job.controller.abort();server.close(resolve);}),getState:()=>state};
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   const port=Number(process.env.CLOUD_STUDY_PORT??4173);
   if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid port');
-  const app=await createApp({executable:await findExecutable(),adapter:createAdapter({mode:process.argv.includes('--mock')?'mock':'blocked'})});
-  app.server.listen(port,'127.0.0.1',()=>console.log(`Local: http://127.0.0.1:${port}\nCodex inference: ${process.argv.includes('--mock')?'MOCK ONLY':'NOT CONNECTED'}`));
+  const executable=await findExecutable();
+  const chatExecutable=await findChatExecutable();
+  const app=await createApp({executable,chatAdapter:createStudyChatAdapter({executable:chatExecutable,verified:true}),adapter:createAdapter({mode:process.argv.includes('--mock')?'mock':'blocked'})});
+  app.server.listen(port,'127.0.0.1',()=>console.log(`Local: http://127.0.0.1:${port}\nStudy chat: ${chatExecutable?'GPT-6.1 Sol / Light / ChatGPT login checked per request':'compatible Codex CLI not found'}\nExam inference: NOT CONNECTED`));
   app.server.on('error',error=>{console.error(error.code==='EADDRINUSE'?'포트가 사용 중입니다. CLOUD_STUDY_PORT를 변경하세요.':'서버 시작 실패');process.exitCode=1;});
 }
