@@ -19,8 +19,8 @@ export function createStudyChat({catalog,api,getContext}){
    await new Promise(resolve=>setTimeout(resolve,900));
   }
   if(job.status==='succeeded'){addReply(job.result);draft='';lastRequest=null;error='';}
-  else if(job.status==='cancelled')error='요청을 중지했습니다. 이미 사용한 계정 사용량은 복원되지 않습니다.';
-  else error=job.error?.message??'답변을 받지 못했습니다. 질문을 남겨 두었습니다.';
+  else if(job.status==='cancelled'){error='요청을 중지했습니다. 이미 사용한 계정 사용량은 복원되지 않습니다.';lastRequest=null;}
+  else{error=job.error?.message??'답변을 받지 못했습니다. 질문을 남겨 두었습니다.';lastRequest=null;}
  }
  async function send(){
   if(busy||!draft.trim())return;
