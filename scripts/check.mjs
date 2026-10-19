@@ -46,7 +46,7 @@ for(const chapter of chapters){
     for(const id of m.sourceIds)assert(ids.has(id));
   }
 }
-for(const file of ['apps/web/index.html','apps/web/style.css','apps/web/app.mjs','apps/web/exam-ui.mjs','apps/web/lesson-ui.mjs']){
+for(const file of ['apps/web/index.html','apps/web/style.css','apps/web/app.mjs','apps/web/exam-ui.mjs','apps/web/lesson-ui.mjs','apps/web/print-ui.mjs','apps/web/print-edition.mjs','apps/web/print.css']){
   const text=await readFile(new URL('../'+file,import.meta.url),'utf8');assert(!text.includes('\ufffd'));assert(text.length>0);
 }
 console.log('검증 완료: 7개 강의, 21개 확장 학습안, 서술형 연습 63문제, 시험 21문제, 출처 연결과 10점 루브릭.');

@@ -1,7 +1,8 @@
 import {createStudyChat} from './study-chat-ui.mjs';
 let chatPanel=null;
 import {examHTML} from './exam-ui.mjs';
-import {guideHTML,practicePrintHTML} from './lesson-ui.mjs';
+import {guideHTML} from './lesson-ui.mjs';
+import {openPrintPreview} from './print-ui.mjs';
 const root=document.querySelector('#app');
 let examData=null,examAttempt=null,examReview=null,examBusy=false,examError='',examRequest=null;
 const examsView=()=>examHTML({data:examData,state,attempt:examAttempt,review:examReview,busy:examBusy,error:examError,esc,refs,button});
@@ -93,7 +94,7 @@ function practiceView(ch){
 }
 function sourceCards(ids=catalog.sources.map(s=>s.id)){return ids.map(id=>{const s=source(id);return `<article class="source-card"><div class="button-row">${badge(s.verificationStatus==='verified'?'직접 열람':'확인 필요',s.verificationStatus==='verified')}${badge(s.accessScope)}</div><h3>${esc(s.title)}</h3><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">공식 원문 열기 ↗</a><dl><dt>발행처</dt><dd>${esc(s.publisher)}</dd><dt>확인일</dt><dd>${esc(s.checkedAt)}</dd><dt>확인 위치</dt><dd>${esc(s.locator)}</dd><dt>자료 ID</dt><dd>${esc(s.id)}</dd><dt>이용 범위</dt><dd>${esc(s.rightsNote)}</dd></dl></article>`;}).join('');}
 function sourcesView(){return `<div class="eyebrow">SOURCES & PROVENANCE</div><h1>학습 자료의 근거를 확인하세요.</h1><p class="muted">강의 내용, 공개 목차, 자체 작성 연습을 구분합니다.</p><div class="notice">공개 소개 페이지는 전체 수업을 확인한 근거가 아닙니다. 현재 계정의 수업 버전과 공개 자료가 다를 수 있습니다.</div>${sourceCards()}`;}
-function printView(){return `<div class="eyebrow">PAPER OPEN-BOOK</div><h1>필요한 개념을 종이 위에.</h1><p class="muted">강의 요약, 용어 색인, 확인된 모범답안을 흑백 인쇄에 맞춰 정리합니다.</p><article class="paper"><h2>인쇄할 강의 선택</h2><div class="button-row">${button('모두 선택','select-all')}${button('선택 해제','select-none')}</div><div class="print-controls">${courses().map(c=>`<label><input type="checkbox" data-print="${c.id}" ${printed.has(c.id)?'checked':''}>${esc(c.title)} · 3개 챕터</label>`).join('')}</div>${button('인쇄 미리보기 열기','print-selected','',true)}<div class="notice info">현재 자료는 초안 인쇄본입니다. 목차와 색인은 강의·챕터 ID 기준입니다. 최종 PDF의 페이지 번호 색인과 전체 레이아웃 검증은 다음 개발 단계입니다.</div><p class="muted">21개 챕터의 확장 학습안과 63개 자체 작성 연습·모범답안을 선택하여 인쇄합니다. 인쇄 준비는 Codex를 호출하지 않습니다.</p></article>`;}
+function printView(){return `<div class="eyebrow">PAPER OPEN-BOOK</div><h1>필요한 개념을 종이 위에.</h1><p class="muted">강의 요약, 용어 색인, 확인된 모범답안을 흑백 인쇄에 맞춰 정리합니다.</p><article class="paper"><h2>인쇄할 강의 선택</h2><div class="button-row">${button('모두 선택','select-all')}${button('선택 해제','select-none')}</div><div class="print-controls">${courses().map(c=>`<label><input type="checkbox" data-print="${c.id}" ${printed.has(c.id)?'checked':''}>${esc(c.title)} · 3개 챕터</label>`).join('')}</div>${button('인쇄 미리보기 열기','print-selected','',true)}<div class="notice info">선택한 내용을 핵심 개념 → 비교표 → 작동 흐름 → 서술형 문제·답안으로 정리합니다. 관련 보강 내용과 실제 페이지 번호가 연결된 색인도 함께 인쇄합니다.</div><p class="muted">A4 · 여백 1cm · 본문 10pt. 제목·출처 배지·채점표·챗봇·개인 메모는 제외합니다. 인쇄 준비는 Codex를 호출하지 않습니다.</p></article>`;}
 function connectionView(){return `<div class="eyebrow">LOCAL CODEX CONNECTION</div><h1>내 계정으로 연결하는 학습 도구.</h1><article class="paper"><h2>${ai.mode==='mock'?'개발용 모의 모드':'실제 AI 연결 준비 중'}</h2><p>${esc(ai.reason)}</p><div class="notice">현재 질문·답안 입력과 자료 저장은 가능합니다. 기존 답안 자동 채점은 활성화되지 않았습니다. 학습 질문은 오른쪽 GPT‑6.1 Sol · Light 챗봇에서 별도로 보낼 수 있습니다.</div>${button('ChatGPT 로그인 상태 확인','check-login')}<div id="login-result" class="result" hidden></div><p class="muted">인증 확인은 로그인 상태만 확인하며 질문·채점을 실행하지 않습니다.</p><h3>사용량 안내</h3><p>${esc(ai.usage)}</p><a href="${esc(ai.usageUrl)}" target="_blank" rel="noopener noreferrer">공식 사용량·요금 안내 ↗</a><h3>개인 로컬 실행</h3><p>웹페이지는 같은 컴퓨터의 로컬 서버를 이용합니다. 계정 비밀번호나 인증 파일을 웹페이지에 입력하지 마세요.</p><h3>다음 연결 단계</h3><ol><li>평가용 실행 영역과 네트워크·파일 경계 검증</li><li>도구·플러그인·전역 설정 상속 차단 검증</li><li>ChatGPT 인증으로 작은 실제 호출과 결과 검증</li></ol></article>`;}
 function markDirty(){pendingSave=true;saveStatus='저장 중…';if(byId('save-status'))byId('save-status').textContent=saveStatus;clearTimeout(saveTimer);saveTimer=setTimeout(()=>save(),550);}
 async function save(){
@@ -122,16 +123,14 @@ async function submitAI(operation){
     }
   }catch(error){currentJob=null;jobResult=error.message;toast(error.message);render();}
 }
-function printChapter(ch){if(ch.studyGuide){const c=courses().find(c=>c.chapters.includes(ch));return `<section class="print-sheet"><div>${esc(c.title)} · ${esc(ch.id)}</div><h1>${esc(ch.title)}</h1><p>학습안 ${esc(ch.studyGuide.version)} · 출처 확인 ${catalog.checkedAt}</p>${guideHTML(ch,lessonHelpers,true)}${practicePrintHTML(ch,lessonHelpers)}${state.notes[ch.id]?`<h2>내 메모</h2><p>${esc(state.notes[ch.id])}</p>`:''}</section>`;}const c=courses().find(c=>c.chapters.includes(ch));return `<section class="print-sheet"><div>${esc(c.title)} · ${ch.id}</div><h1>${esc(ch.title)}</h1>${badge(ch.lesson?'현재 수업 대본 · 일부 요약':ch.materials?.length?'공식 대본 · 핵심 요약':'공식 소개·목차 범위')}<p>${esc(ch.summary)}</p>${refs(ch.sourceIds,ch.englishTitle)}${ch.lesson?`<h2>핵심 개념</h2>${ch.lesson.concepts.map(con=>`<div class="concept"><strong>${esc(con.term)} · ${esc(con.english)}</strong><p>${esc(con.text)}</p>${refs(con.sourceIds,con.locator)}</div>`).join('')}<h2>작동 흐름</h2><p>학습용 재구성: ${ch.lesson.steps.map(esc).join(' → ')}</p><h2>비교표</h2>${table(ch.lesson.compare)}${refs(ch.lesson.compare.sourceIds,ch.lesson.compare.locator)}${table(ch.lesson.models)}${refs(ch.lesson.models.sourceIds,ch.lesson.models.locator)}<h2>가상 사례</h2><p>${esc(ch.lesson.scenario.text)}</p>${refs(ch.lesson.scenario.sourceIds,ch.lesson.scenario.locator)}<p>${esc(ch.lesson.caution)}</p>${refs(ch.lesson.cautionSources,ch.lesson.cautionLocator)}<h2>자체 작성 예상문제와 모범답안</h2>${ch.lesson.questions.map(q=>`<div class="q-block"><h3>${esc(q.title)}</h3><p>${esc(q.text)}</p><p><strong>작성 모범답안:</strong> ${esc(q.modelAnswer)}</p><p>필수 논점: ${q.points.map(esc).join(' / ')}</p>${refs(q.sourceIds,q.sourceLocator)}</div>`).join('')}`:(ch.materials?.length?materialView(ch):`<p>${ch.studyEvidence?.length?'직접 확인한 수업·풀이 기록은 아래에 있습니다.':'상세 수업 자료 확인 전입니다.'}</p>`)}${evidenceView(ch)}${state.notes[ch.id]?`<h2>내 메모</h2><p>${esc(state.notes[ch.id])}</p>`:''}</section>`;}
-function preparePrint(chapters){
-  if(!chapters.length){toast('인쇄할 강의를 선택하세요.');return;}
-  document.querySelector('.print-only')?.remove();
-  const el=document.createElement('div');el.className='print-only';
-  const sourceIds=[...new Set(chapters.flatMap(ch=>ch.sourceIds))];
-  const terms=chapters.flatMap(ch=>ch.terms.map(term=>({term,chapter:ch.id}))).sort((a,b)=>a.term.localeCompare(b.term,'ko'));
-  el.innerHTML=`<section class="print-sheet print-cover"><div>CLOUD NOTES / PAPER OPEN-BOOK</div><h1>클라우드 컴퓨팅<br>서술형 학습 노트</h1><p>자료 버전 ${esc(catalog.version)} · 확인일 ${catalog.checkedAt}</p><p>선택한 ${chapters.length}개 챕터 · 개인 학습용 초안</p><div class="notice">직접 확인한 DataCamp 개념을 바탕으로 보완한 21개 챕터 학습안입니다. 흐름·사례·예상문제·모범답안은 자체 작성이며 외부 공식 보충설명은 별도 표시합니다. 학교 시험의 출제·성적을 보장하지 않습니다.</div></section><section class="print-sheet"><h1>목차와 용어 색인</h1><p>페이지 색인은 최종 PDF 단계에서 추가합니다. 현재는 챕터 ID로 찾아보세요.</p><h2>목차</h2><ul>${chapters.map(ch=>`<li>${ch.id} — ${esc(ch.title)}</li>`).join('')}</ul><h2>용어 색인</h2><table><thead><tr><th>용어</th><th>챕터 ID</th></tr></thead><tbody>${terms.map(t=>`<tr><td>${esc(t.term)}</td><td>${t.chapter}</td></tr>`).join('')}</tbody></table></section>${chapters.map(printChapter).join('')}<section class="print-sheet"><h1>출처 목록</h1>${sourceIds.map(id=>{const s=source(id);return `<div class="source-card"><strong>${esc(s.title)} [${esc(id)}]</strong><p>${esc(s.accessScope)} · ${esc(s.locator)}</p><p class="source-ref">${esc(s.url)} · 확인일 ${s.checkedAt}</p></div>`;}).join('')}</section>`;
-  document.body.append(el);window.print();
+async function preparePrint(chapters){
+  try{await openPrintPreview(chapters);}catch(error){toast(error.message);}
 }
+document.addEventListener('keydown',event=>{
+ if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='p'&&!document.querySelector('#print-preview')){
+  event.preventDefault();const selected=view.type==='chapter'?[chapter()]:courses().filter(c=>printed.has(c.id)).flatMap(c=>c.chapters);preparePrint(selected);
+ }
+});
 root.addEventListener('input',event=>{
   const el=event.target;
   if(el.dataset.examAnswer){state.examDrafts??={};state.examDrafts[el.dataset.examAnswer]=el.value;markDirty();const n=examData.exam.questions.filter(q=>state.examDrafts[q.id]?.trim()).length;byId('exam-count').textContent=n+' / 21문항';byId('exam-ready').textContent=n===21?'21개 답안을 모두 작성했습니다.':'남은 '+(21-n)+'개 문항을 작성하세요.';root.querySelector('[data-action="exam-submit"]').disabled=n!==21||examBusy;}
