@@ -1,4 +1,4 @@
-"""Build the standalone one-page keyword contents. Requires reportlab and pypdf."""
+"""Build readable two-page keyword contents. Requires reportlab and pypdf."""
 import sys
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -49,36 +49,46 @@ def build(output):
     w,h=A4; margin=10*mm; width=w-2*margin; height=h-2*margin
     raw=[line.split('|') for line in DATA.splitlines()]
     assert len(raw)==30
-    for size in [9,8.8,8.6,8.5,8.3,8.1,7.9,7.7,7.5]:
+    pdfmetrics.registerFontFamily('KR',normal='KR',bold='KB')
+    def make_table(part,size):
         def para(text,bold=False):
-            return Paragraph(escape(text),ParagraphStyle('cell',fontName='KB' if bold else 'KR',fontSize=size,leading=size*1.22,wordWrap='CJK'))
-        rows=[[para(x,True) for x in ['쪽','주제','주요 개념·키워드']]]
-        rows += [[para(a,True),para(b,True),para(c)] for a,b,c in raw]
-        table=Table(rows,colWidths=[14*mm,38*mm,width-52*mm])
+            return Paragraph(text,ParagraphStyle('cell',fontName='KB' if bold else 'KR',fontSize=size,leading=size*1.35,wordWrap='CJK'))
+        rows=[[para('본문 쪽',True),para('주제 / 주요 개념·키워드',True)]]
+        rows += [[para(escape(a),True),para('<b>'+escape(b)+'</b><br/>'+escape(c))] for a,b,c in part]
+        table=Table(rows,colWidths=[18*mm,width-18*mm])
         table.setStyle(TableStyle([
             ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
             ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#dce2e6')),
             ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#f3f5f6')]),
             ('LINEBELOW',(0,0),(-1,-1),0.25,colors.HexColor('#bac0c4')),
-            ('LEFTPADDING',(0,0),(-1,-1),3),('RIGHTPADDING',(0,0),(-1,-1),3),
-            ('TOPPADDING',(0,0),(-1,-1),2),('BOTTOMPADDING',(0,0),(-1,-1),2)]))
-        tw,th=table.wrap(width,height)
-        if th<=height: break
-    else: raise RuntimeError('One-page table does not fit')
+            ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
+            ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
+        return table
+    parts=[raw[:15],raw[15:]]
+    for size in [11,10.8,10.6,10.5]:
+        tables=[make_table(part,size) for part in parts]
+        heights=[t.wrap(width,height)[1] for t in tables]
+        if max(heights)<=height: break
+    else: raise RuntimeError('Two-page table does not fit at readable size')
     output=Path(output);output.parent.mkdir(parents=True,exist_ok=True)
     c=canvas.Canvas(str(output),pagesize=A4)
     c.setTitle('클라우드 1-30쪽 키워드 목차')
-    table.drawOn(c,margin,h-margin-th)
-    c.showPage();c.save()
+    for table,th in zip(tables,heights):
+        table.drawOn(c,margin,h-margin-th)
+        c.showPage()
+    c.save()
     reader=PdfReader(output)
-    assert len(reader.pages)==1
-    text=reader.pages[0].extract_text()
+    assert len(reader.pages)==2
+    text='\n'.join(p.extract_text() for p in reader.pages)
     import re
     normalized=re.sub(r'\s+','',text)
     for row in raw:
         for cell in row: assert re.sub(r'\s+','',cell) in normalized
     assert text.count('★')==18
-    print(f'PASS: 1 A4 page, 30 rows, 18 stars, 10mm margins, font={size}pt, table={th:.1f}/{height:.1f}pt')
+    for page,part in zip(reader.pages,parts):
+        page_text=re.sub(r'\s+','',page.extract_text())
+        for row in part: assert re.sub(r'\s+','',row[1]) in page_text
+    print(f'PASS: 2 A4 pages, 15+15 rows, 18 stars, 10mm margins, font={size}pt, heights={heights}, limit={height:.1f}pt')
 
 if __name__=='__main__':
     build(sys.argv[1] if len(sys.argv)>1 else 'exports/pdf/cloud_keyword_index.pdf')
