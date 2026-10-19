@@ -10,7 +10,7 @@ test('paper edition preserves selection, questions and professor corrections wit
  assert.equal(groups.filter(g=>g.id.startsWith('review')).length,7);
  assert.equal(groups.flatMap(g=>g.blocks).join('').match(/class="print-answer"/g).length,63);
  const text=groups.flatMap(g=>g.blocks).join('');
- assert.equal((text.match(/★ /g)??[]).length,18); 
+ assert.equal((text.match(/★ /g)??[]).length,18);
  for(const term of ['2GiB','5분 평균','Template Specs','Deployment Stacks','Container Apps','Stopped (Allocated)','112,000'])assert(text.includes(term));
  for(const term of ['채점 관점','필수 논점','DataCamp 강의 확인 내용','출처 확인','source-ref'])assert(!text.includes(term));
  assert.equal(JSON.stringify(catalog),before);
